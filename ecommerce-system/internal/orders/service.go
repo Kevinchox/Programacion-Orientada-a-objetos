@@ -4,133 +4,117 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 
 	"github.com/Kevinchox/Programacion-Orientada-a-objetos/ecommerce-system/internal/products"
+	"github.com/google/uuid"
 )
 
-// PedidoService maneja la lógica de negocio relacionada con los pedidos.
-type PedidoService struct {
-	repo           PedidoRepository          // Repositorio para persistir pedidos (puede ser en memoria o BD)
-	productService *products.ProductoService // Servicio para interactuar con productos (stock, info, etc.)
+type Service interface {
+	CrearPedido(ctx context.Context, userID, direccionEnvio string, lineasPedido []LineaPedido) (*Pedido, error)
+	ObtenerPedidoPorID(ctx context.Context, id string) (*Pedido, error)
+	ActualizarEstadoPedido(ctx context.Context, id string, nuevoEstado EstadoPedido) error
+	GetPedidosByUserID(ctx context.Context, userID string) ([]Pedido, error)
+	GetAllPedidos(ctx context.Context) ([]Pedido, error)
 }
 
-// NewPedidoService crea y retorna una nueva instancia de PedidoService.
-func NewPedidoService(repo PedidoRepository, ps *products.ProductoService) *PedidoService {
-	return &PedidoService{repo: repo, productService: ps}
+type pedidoService struct {
+	repo           Repository
+	productService products.Service
 }
 
-// CrearPedido valida el stock de los productos, crea el pedido y simula la actualización de stock.
-func (s *PedidoService) CrearPedido(ctx context.Context, userID, direccion string, items []LineaPedido) (*Pedido, error) {
-	if userID == "" || direccion == "" || len(items) == 0 {
-		return nil, errors.New("usuarioID, dirección y al menos un ítem son requeridos para crear un pedido")
+func NewPedidoService(repo Repository, prodService products.Service) Service {
+	return &pedidoService{repo: repo, productService: prodService}
+}
+
+func (s *pedidoService) CrearPedido(ctx context.Context, userID, direccionEnvio string, lineasPedido []LineaPedido) (*Pedido, error) {
+	if userID == "" || direccionEnvio == "" || len(lineasPedido) == 0 {
+		return nil, errors.New("faltan datos esenciales para crear el pedido")
 	}
-
-	var processedLines []LineaPedido // Lista de líneas de pedido procesadas y validadas
-	for _, item := range items {
-		// Validación básica de cada línea
-		if item.ProductoID == "" || item.Cantidad <= 0 || item.PrecioUnitario <= 0 {
-			return nil, errors.New("cada línea de pedido debe tener un ProductoID, Cantidad y PrecioUnitario válidos")
+	pedido := Pedido{
+		ID:             uuid.New().String(),
+		UserID:         userID,
+		DireccionEnvio: direccionEnvio,
+		Estado:         Pendiente,
+		Lineas:         make([]LineaPedido, 0, len(lineasPedido)),
+	}
+	var subtotal float64
+	for _, l := range lineasPedido {
+		if l.ProductoID == "" || l.Cantidad <= 0 {
+			return nil, errors.New("línea de pedido inválida")
 		}
-
-		// Obtener información actual del producto
-		prod, err := s.productService.ObtenerProductoPorID(ctx, item.ProductoID)
-		if err != nil {
-			return nil, fmt.Errorf("error al obtener producto %s para el pedido: %w", item.ProductoID, err)
+		prod, err := s.productService.ObtenerProductoPorID(ctx, l.ProductoID)
+		if err != nil || prod == nil || prod.Stock < l.Cantidad {
+			return nil, fmt.Errorf("producto inválido o stock insuficiente para %s", l.ProductoID)
 		}
-		if prod == nil {
-			return nil, fmt.Errorf("producto con ID %s no encontrado para el pedido", item.ProductoID)
-		}
-
-		// Validar stock suficiente
-		if prod.Stock < item.Cantidad {
-			return nil, fmt.Errorf("stock insuficiente para el producto '%s'. Disponible: %d, Solicitado: %d", prod.Nombre, prod.Stock, item.Cantidad)
-		}
-
-		// Agregar línea procesada (con nombre y precio actual)
-		processedLines = append(processedLines, LineaPedido{
+		pedido.Lineas = append(pedido.Lineas, LineaPedido{
 			ProductoID:     prod.ID,
 			NombreProducto: prod.Nombre,
-			Cantidad:       item.Cantidad,
+			Cantidad:       l.Cantidad,
 			PrecioUnitario: prod.Precio,
 		})
-
-		// Actualizar stock del producto
-		updatedProd := prod.ActualizarStock(-item.Cantidad)
-		err = s.productService.ActualizarProducto(ctx, updatedProd.ID, updatedProd)
-		if err != nil {
-			return nil, fmt.Errorf("error al actualizar stock para producto %s: %w", updatedProd.ID, err)
+		subtotal += prod.Precio * float64(l.Cantidad)
+	}
+	pedido.Total = subtotal
+	pedido.TotalConIVA = subtotal * (1 + IVARate)
+	for _, l := range pedido.Lineas {
+		if err := s.productService.ActualizarStock(ctx, l.ProductoID, -l.Cantidad); err != nil {
+			return nil, fmt.Errorf("error al deducir stock: %w", err)
 		}
 	}
-
-	newOrderID := uuid.New().String()                                    // Generar un nuevo ID único para el pedido
-	newOrder := NewPedido(newOrderID, userID, direccion, processedLines) // Crear el pedido
-
-	// Guardar el pedido en el repositorio
-	err := s.repo.Save(ctx, &newOrder)
-	if err != nil {
-		return nil, fmt.Errorf("fallo al guardar el pedido en el repositorio: %w", err)
+	if err := s.repo.Save(ctx, pedido); err != nil {
+		return nil, fmt.Errorf("error al guardar el pedido: %w", err)
 	}
-	return &newOrder, nil
+	return &pedido, nil
 }
 
-// ObtenerPedidoPorID recupera un pedido por su ID.
-func (s *PedidoService) ObtenerPedidoPorID(ctx context.Context, id string) (*Pedido, error) {
+func (s *pedidoService) ObtenerPedidoPorID(ctx context.Context, id string) (*Pedido, error) {
 	if id == "" {
-		return nil, errors.New("ID de pedido no puede estar vacío")
+		return nil, errors.New("el ID del pedido no puede estar vacío")
 	}
-	order, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("fallo al obtener pedido por ID %s del repositorio: %w", id, err)
-	}
-	if order == nil {
-		return nil, errors.New("pedido no encontrado")
-	}
-	return order, nil
+	return s.repo.GetByID(ctx, id)
 }
 
-// ActualizarEstadoPedido permite cambiar el estado de un pedido.
-func (s *PedidoService) ActualizarEstadoPedido(ctx context.Context, pedidoID string, nuevoEstado EstadoPedido) error {
-	if pedidoID == "" {
-		return errors.New("ID de pedido no puede estar vacío para actualizar el estado")
+func (s *pedidoService) ActualizarEstadoPedido(ctx context.Context, id string, nuevoEstado EstadoPedido) error {
+	if id == "" {
+		return errors.New("el ID del pedido no puede estar vacío")
 	}
-	pedido, err := s.repo.GetByID(ctx, pedidoID)
-	if err != nil {
-		return fmt.Errorf("error al obtener pedido para actualizar estado: %w", err)
+	pedido, err := s.repo.GetByID(ctx, id)
+	if err != nil || pedido == nil {
+		return fmt.Errorf("pedido no encontrado para actualizar estado")
 	}
-	if pedido == nil {
-		return errors.New("pedido no encontrado para actualizar estado")
+	switch pedido.Estado {
+	case Pendiente:
+		if nuevoEstado != Procesado && nuevoEstado != Cancelado {
+			return fmt.Errorf("transición inválida")
+		}
+	case Procesado:
+		if nuevoEstado != Enviado && nuevoEstado != Cancelado {
+			return fmt.Errorf("transición inválida")
+		}
+	case Enviado:
+		if nuevoEstado != Entregado && nuevoEstado != Cancelado {
+			return fmt.Errorf("transición inválida")
+		}
+	case Entregado, Cancelado:
+		return fmt.Errorf("no se puede actualizar el estado de un pedido %s", pedido.Estado)
 	}
-
-	// No se permite cambiar el estado si ya fue entregado
-	if pedido.Estado == Entregado && nuevoEstado != Entregado {
-		return errors.New("no se puede cambiar el estado de un pedido ya entregado")
+	if nuevoEstado == Cancelado && (pedido.Estado == Pendiente || pedido.Estado == Procesado) {
+		for _, l := range pedido.Lineas {
+			if err := s.productService.ActualizarStock(ctx, l.ProductoID, l.Cantidad); err != nil {
+				return fmt.Errorf("fallo al restaurar stock: %w", err)
+			}
+		}
 	}
-	updatedPedido := pedido.ActualizarEstado(nuevoEstado) // Crear copia con estado actualizado
-	err = s.repo.Update(ctx, updatedPedido)               // Guardar cambios en el repositorio
-	if err != nil {
-		return fmt.Errorf("fallo al actualizar el estado del pedido en el repositorio: %w", err)
-	}
-	return nil
+	return s.repo.UpdateEstado(ctx, id, nuevoEstado)
 }
 
-// GetPedidosByUserID obtiene todos los pedidos de un usuario específico.
-func (s *PedidoService) GetPedidosByUserID(ctx context.Context, userID string) ([]Pedido, error) {
+func (s *pedidoService) GetPedidosByUserID(ctx context.Context, userID string) ([]Pedido, error) {
 	if userID == "" {
-		return nil, errors.New("ID de usuario no puede estar vacío para obtener pedidos")
+		return nil, errors.New("el ID de usuario no puede estar vacío")
 	}
-	orders, err := s.repo.GetByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("fallo al obtener pedidos por ID de usuario %s del repositorio: %w", userID, err)
-	}
-	return orders, nil
+	return s.repo.GetPedidosByUserID(ctx, userID)
 }
 
-// GetAllPedidos obtiene todos los pedidos (para administradores).
-func (s *PedidoService) GetAllPedidos(ctx context.Context) ([]Pedido, error) {
-	orders, err := s.repo.GetAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("fallo al obtener todos los pedidos del repositorio: %w", err)
-	}
-	return orders, nil
+func (s *pedidoService) GetAllPedidos(ctx context.Context) ([]Pedido, error) {
+	return s.repo.GetAll(ctx)
 }

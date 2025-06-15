@@ -3,68 +3,52 @@ package products
 import (
 	"context"
 	"errors"
-	"fmt"
-	"time"
 )
 
-// ProductoService maneja la lógica de negocio de los productos.
-type ProductoService struct {
-	repo ProductoRepository // Repositorio para persistir productos (puede ser en memoria o BD)
+type Service interface {
+	CrearProducto(ctx context.Context, producto Producto) error
+	ObtenerProductoPorID(ctx context.Context, id string) (*Producto, error)
+	ActualizarProducto(ctx context.Context, id string, producto Producto) error
+	ActualizarStock(ctx context.Context, id string, cantidad int) error
+	GetAllProducts(ctx context.Context) ([]Producto, error)
 }
 
-// NewProductoService crea y retorna una nueva instancia de ProductoService.
-func NewProductoService(repo ProductoRepository) *ProductoService {
-	return &ProductoService{repo: repo}
+type productoService struct {
+	repo Repository
 }
 
-// CrearProducto valida y guarda un nuevo producto.
-func (s *ProductoService) CrearProducto(ctx context.Context, producto *Producto) error {
-	if producto.ID == "" || producto.Nombre == "" || producto.Precio <= 0 {
-		return errors.New("ID, nombre y precio del producto son requeridos")
+func NewProductoService(repo Repository) Service {
+	return &productoService{repo: repo}
+}
+
+func (s *productoService) CrearProducto(ctx context.Context, p Producto) error {
+	if p.ID == "" || p.Nombre == "" || p.Precio <= 0 || p.Stock < 0 {
+		return errors.New("datos de producto inválidos")
 	}
-	// Asegura que las fechas de creación/actualización estén configuradas
-	if producto.CreatedAt.IsZero() {
-		producto.CreatedAt = time.Now() // Asigna la fecha de creación si no está definida
-	}
-	producto.UpdatedAt = time.Now() // Actualiza la fecha de modificación
-
-	return s.repo.Save(ctx, producto) // Guarda el producto usando el repositorio
+	return s.repo.Save(ctx, p)
 }
 
-// ObtenerProductoPorID recupera un producto por su ID.
-func (s *ProductoService) ObtenerProductoPorID(ctx context.Context, id string) (*Producto, error) {
+func (s *productoService) ObtenerProductoPorID(ctx context.Context, id string) (*Producto, error) {
 	if id == "" {
-		return nil, errors.New("ID del producto no puede estar vacío")
+		return nil, errors.New("ID vacío")
 	}
-	prod, err := s.repo.GetByID(ctx, id) // Busca el producto en el repositorio
-	if err != nil {
-		return nil, fmt.Errorf("fallo al obtener producto por ID: %w", err)
-	}
-	if prod == nil {
-		return nil, errors.New("producto no encontrado")
-	}
-	return prod, nil
+	return s.repo.GetByID(ctx, id)
 }
 
-// ActualizarProducto actualiza un producto existente.
-func (s *ProductoService) ActualizarProducto(ctx context.Context, id string, producto *Producto) error {
-	if id == "" || producto.ID == "" || producto.ID != id {
-		return errors.New("IDs de producto no válidos para actualizar")
+func (s *productoService) ActualizarProducto(ctx context.Context, id string, p Producto) error {
+	if id == "" || p.ID != id || p.Nombre == "" || p.Precio <= 0 || p.Stock < 0 {
+		return errors.New("datos de producto inválidos")
 	}
-	// Asegura que las fechas de actualización estén configuradas
-	producto.UpdatedAt = time.Now()     // Actualiza la fecha de modificación
-	return s.repo.Update(ctx, producto) // Actualiza el producto en el repositorio
+	return s.repo.Update(ctx, p)
 }
 
-// EliminarProducto elimina un producto por su ID.
-func (s *ProductoService) EliminarProducto(ctx context.Context, id string) error {
-	if id == "" {
-		return errors.New("ID del producto no puede estar vacío para eliminar")
+func (s *productoService) ActualizarStock(ctx context.Context, id string, cantidad int) error {
+	if id == "" || cantidad == 0 {
+		return nil
 	}
-	return s.repo.Delete(ctx, id) // Elimina el producto del repositorio
+	return s.repo.UpdateStock(ctx, id, cantidad)
 }
 
-// GetAllProducts obtiene todos los productos.
-func (s *ProductoService) GetAllProducts(ctx context.Context) ([]Producto, error) {
-	return s.repo.GetAll(ctx) // Retorna todos los productos almacenados
+func (s *productoService) GetAllProducts(ctx context.Context) ([]Producto, error) {
+	return s.repo.GetAll(ctx)
 }
