@@ -50,16 +50,3 @@ El proyecto sigue una estructura modular y limpia para mantener el código organ
     * `model.go`: Define las estructuras de datos para `Order`, `LineItem`, `OrderRequest` y `LineItemRequest`.
     * `repository.go`: Implementación del almacenamiento de datos de pedidos (en memoria).
     * `service.go`: Contiene la lógica de negocio para la creación de pedidos (interactuando con productos y usuarios), consulta y actualización de estados.
-
-## 🚀 Cómo Ejecutar el Proyecto
-
-1.  **Clonar el repositorio:**
-    ```bash
-    git clone [URL_DE_TU_REPOSITORIO]
-    cd [nombre-de-tu-repositorio]
-    ```
-2.  **Instalar dependencias:** Asegúrate de que Go esté instalado. Luego, en la raíz del proyecto, ejecuta:
-    ```bash
-    go mod tidy
-    ```
-3.  **Ejecutar el servidor:**
