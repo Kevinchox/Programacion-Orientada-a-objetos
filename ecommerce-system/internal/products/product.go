@@ -8,31 +8,35 @@ import (
 	"time"
 )
 
-type Producto struct {
-	ID, Nombre, Descripcion, Categoria string
-	Precio                             float64
-	Stock                              int
-	FechaCreacion, FechaActualizacion  time.Time
+type Product struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Price       float64   `json:"price"`
+	Stock       int       `json:"stock"`
+	Category    string    `json:"category"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func NewProducto(id, nombre, descripcion string, precio float64, stock int, categoria string) Producto {
+func NewProduct(id, name, description string, price float64, stock int, category string) Product {
 	now := time.Now()
-	return Producto{
-		ID: id, Nombre: nombre, Descripcion: descripcion, Precio: precio, Stock: stock, Categoria: categoria,
-		FechaCreacion: now, FechaActualizacion: now,
+	return Product{
+		ID: id, Name: name, Description: description, Price: price, Stock: stock, Category: category,
+		CreatedAt: now, UpdatedAt: now,
 	}
 }
 
-func (p *Producto) GetPrecioConIVA(ivaRate float64) float64 {
-	return p.Precio * (1 + ivaRate)
+func (p *Product) GetPrecioConIVA(ivaRate float64) float64 {
+	return p.Price * (1 + ivaRate)
 }
 
 type Repository interface {
-	Save(ctx context.Context, producto Producto) error
-	GetByID(ctx context.Context, id string) (*Producto, error)
-	Update(ctx context.Context, producto Producto) error
+	Save(ctx context.Context, product Product) error
+	GetByID(ctx context.Context, id string) (*Product, error)
+	Update(ctx context.Context, product Product) error
 	UpdateStock(ctx context.Context, id string, quantity int) error
-	GetAll(ctx context.Context) ([]Producto, error)
+	GetAll(ctx context.Context) ([]Product, error)
 }
 
 var ErrorStockInsuficiente = errors.New("stock insuficiente")

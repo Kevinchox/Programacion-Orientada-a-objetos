@@ -1,44 +1,31 @@
-// Paquete orders maneja la lógica y modelos de pedidos
+// Package orders manages the logic and models of orders
 
 package orders
 
-import (
-	"context"
-	"time"
-)
+import "time"
 
-// EstadoPedido: estados posibles de un pedido
+type OrderStatus string
+
 const (
-	Pendiente EstadoPedido = "Pendiente"
-	Procesado EstadoPedido = "Procesado"
-	Enviado   EstadoPedido = "Enviado"
-	Entregado EstadoPedido = "Entregado"
-	Cancelado EstadoPedido = "Cancelado"
+	StatusPending   OrderStatus = "Pendiente"
+	StatusProcessed OrderStatus = "Procesado"
+	StatusShipped   OrderStatus = "Enviado"
+	StatusDelivered OrderStatus = "Entregado"
+	StatusCancelled OrderStatus = "Cancelado"
 )
 
-type EstadoPedido string
-
-const IVARate = 0.15
-
-type LineaPedido struct {
-	ProductoID     string
-	NombreProducto string
-	Cantidad       int
-	PrecioUnitario float64
+type LineItem struct {
+	ProductID string  `json:"product_id"`
+	Quantity  int     `json:"quantity"`
+	Price     float64 `json:"price"`
 }
 
-type Pedido struct {
-	ID, UserID, DireccionEnvio        string
-	Lineas                            []LineaPedido
-	Total, TotalConIVA                float64
-	Estado                            EstadoPedido
-	FechaCreacion, FechaActualizacion time.Time
-}
-
-type Repository interface {
-	Save(ctx context.Context, pedido Pedido) error
-	GetByID(ctx context.Context, id string) (*Pedido, error)
-	UpdateEstado(ctx context.Context, id string, estado EstadoPedido) error
-	GetPedidosByUserID(ctx context.Context, userID string) ([]Pedido, error)
-	GetAll(ctx context.Context) ([]Pedido, error)
+type Order struct {
+	ID        string      `json:"id"`
+	UserID    string      `json:"user_id"`
+	LineItems []LineItem  `json:"line_items"`
+	Total     float64     `json:"total"`
+	Status    OrderStatus `json:"status"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
 }
