@@ -1,10 +1,9 @@
-# Sistema de Gestión de E-commerce (Backend)
-
+# Sistema de Gestión de E-commerce
 ## 🎯 Objetivo del Programa
 
 Este proyecto implementa un sistema backend de gestión de e-commerce desarrollado en **Go (Golang)**. Su objetivo principal es simular las operaciones fundamentales de una tienda en línea, gestionando la información de productos, usuarios y pedidos de forma eficiente y modular, exponiendo sus funcionalidades a través de una **API RESTful**.
 
-## 🚀 Principales Funcionalidades (API RESTful)
+## 🚀 Principales Funcionalidades
 
 El sistema ofrece las siguientes capacidades clave, accesibles a través de sus servicios web:
 
