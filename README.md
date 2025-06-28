@@ -49,3 +49,7 @@ El proyecto sigue una estructura modular y limpia para mantener el código organ
     * `model.go`: Define las estructuras de datos para `Order`, `LineItem`, `OrderRequest` y `LineItemRequest`.
     * `repository.go`: Implementación del almacenamiento de datos de pedidos (en memoria).
     * `service.go`: Contiene la lógica de negocio para la creación de pedidos (interactuando con productos y usuarios), consulta y actualización de estados.
+      
+  * **Fecha de Última Actualización:** 29 de junio de 2025
+* **Integrantes del Grupo:**
+    * Kevin Daniel Aguilar Baca
