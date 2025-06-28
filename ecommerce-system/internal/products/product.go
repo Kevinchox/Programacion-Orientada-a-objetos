@@ -1,5 +1,3 @@
-// Paquete products define el modelo y operaciones para productos
-
 package products
 
 import (

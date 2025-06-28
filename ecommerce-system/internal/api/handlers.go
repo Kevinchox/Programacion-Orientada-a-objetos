@@ -49,6 +49,7 @@ func respondError(w http.ResponseWriter, status int, message string) {
 }
 
 // --- PRODUCT HANDLERS ---
+
 func (h *Handler) CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	var req products.ProductRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -100,6 +101,7 @@ func (h *Handler) UpdateProductHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- USER HANDLERS ---
+
 func (h *Handler) RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
 	var req users.UserRegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -129,6 +131,7 @@ func (h *Handler) LoginUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- ORDER HANDLERS ---
+
 func (h *Handler) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 	var req orders.OrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -1,5 +1,3 @@
-// Package orders manages the logic and models of orders
-
 package orders
 
 import "time"

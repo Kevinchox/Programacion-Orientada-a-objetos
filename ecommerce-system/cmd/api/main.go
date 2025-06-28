@@ -14,7 +14,6 @@ import (
 	"github.com/Kevinchox/Programacion-Orientada-a-objetos/ecommerce-system/internal/users"
 )
 
-// La función main es el punto de entrada de tu aplicación Go.
 func main() {
 	fmt.Println("Iniciando Sistema de Gestión de E-commerce como Servicio Web...")
 
@@ -62,4 +61,4 @@ func main() {
 	fmt.Println("Servidor detenido.")
 }
 
-//15-6-2025
+//29-6-2025
